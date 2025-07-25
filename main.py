@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timedelta
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-API_TOKEN = 'توكن_البوت_هنا'
+API_TOKEN = '8374831949:AAHhAyTBvQTEYrHqD356Z99NZq1CmNnFdZU'
 bot = telebot.TeleBot(API_TOKEN)
 
 AUTHORIZED_USER_IDS = [507836119, 7708626625]
