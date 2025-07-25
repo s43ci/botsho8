@@ -48,8 +48,8 @@ def is_admin(chat_id, user_id):
 def get_main_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
     markup.row(
-        KeyboardButton("➕ إضافة رسالة"),
-        KeyboardButton("🗑️ حذف الرسالة")
+        KeyboardButton("➕ إضافـة رسالة"),
+        KeyboardButton("🗑️ حـذف الرسالة")
     )
     return markup
 
@@ -59,7 +59,7 @@ def handle_start(message):
         return
     bot.send_message(
         message.chat.id,
-        "👋 هلاا شووق نورتي البوت! استخدم الأزرار أدناه.",
+        "👋 هلاا شوق نورتي البوت! استخدم الأزرار أدناه.",
         reply_markup=get_main_keyboard()
     )
 
