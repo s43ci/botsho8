@@ -66,13 +66,15 @@ def handle_messages(message):
 
     # حذف الرسائل التي تحتوي روابط في الجروبات من غير الأدمنز
     if message.chat.type in ['group', 'supergroup']:
-        if message.content_type == 'text' and re.search(URL_PATTERN, message.text):
-            if not is_admin(message.chat.id, user_id):
-                try:
-                    bot.delete_message(message.chat.id, message.message_id)
-                except:
-                    pass
-            return
+    if message.content_type == 'text' and re.search(URL_PATTERN, message.text):
+        try:
+            chat_member = bot.get_chat_member(message.chat.id, user_id)
+            status = chat_member.status
+            if status not in ['administrator', 'creator']:
+                bot.delete_message(message.chat.id, message.message_id)
+        except Exception as e:
+            print(f"فشل التحقق من صلاحيات العضو: {e}")
+        return
 
     if message.chat.type == 'private' and user_id in AUTHORIZED_USER_IDS:
         state = user_states.get(user_id, {})
