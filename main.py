@@ -2,16 +2,21 @@ import telebot
 import re
 import threading
 import time
+import os
+import json
 from datetime import datetime, timedelta
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 
-API_TOKEN = '7994383386:AAHDD7-F3mrv3_RtlZs5dEzPGrChzaRzsm0'
+API_TOKEN = '8374831949:AAH-am6HdjEwSkrVPe69y9TlIm16Uwotqdo'
 bot = telebot.TeleBot(API_TOKEN)
 
-AUTHORIZED_USER_ID = 7708626625
-GROUP_CHAT_ID = -1002830133309
-
+AUTHORIZED_USER_IDS = [507836119, 7708626625]
+GROUP_CHAT_ID = -4916541487
 URL_PATTERN = r'(https?://\S+|www\.\S+)'
+
+# مكان التخزين
+DATA_DIR = "data"
+STORAGE_FILE = os.path.join(DATA_DIR, "messages.json")
 
 daily_messages = []
 waiting_for_message = False
@@ -19,12 +24,26 @@ waiting_for_time = False
 temp_message = None
 user_pending_time = {}
 
+# إنشاء مجلد التخزين إذا ما موجود
+os.makedirs(DATA_DIR, exist_ok=True)
+
+# 🔁 تحميل الرسائل المجدولة من الملف
+def load_scheduled_messages():
+    global daily_messages
+    if os.path.exists(STORAGE_FILE):
+        with open(STORAGE_FILE, "r", encoding="utf-8") as f:
+            try:
+                daily_messages = json.load(f)
+            except json.JSONDecodeError:
+                daily_messages = []
+
+# 💾 حفظ الرسائل المجدولة إلى الملف
+def save_scheduled_messages():
+    with open(STORAGE_FILE, "w", encoding="utf-8") as f:
+        json.dump(daily_messages, f, ensure_ascii=False, indent=2)
+
 def is_admin(chat_id, user_id):
-    try:
-        member = bot.get_chat_member(chat_id, user_id)
-        return member.status in ['administrator', 'creator']
-    except:
-        return False
+    return user_id in AUTHORIZED_USER_IDS
 
 def get_main_keyboard():
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -36,7 +55,7 @@ def get_main_keyboard():
 
 @bot.message_handler(commands=['start'])
 def handle_start(message):
-    if message.from_user.id != AUTHORIZED_USER_ID:
+    if message.from_user.id not in AUTHORIZED_USER_IDS:
         return
     bot.send_message(
         message.chat.id,
@@ -44,12 +63,12 @@ def handle_start(message):
         reply_markup=get_main_keyboard()
     )
 
-@bot.message_handler(func=lambda message: True, content_types=['text'])
+@bot.message_handler(func=lambda message: True, content_types=['text', 'photo', 'video', 'document'])
 def handle_messages(message):
     global waiting_for_time, waiting_for_message, temp_message
 
     if message.chat.type in ['group', 'supergroup']:
-        if re.search(URL_PATTERN, message.text):
+        if message.content_type == 'text' and re.search(URL_PATTERN, message.text):
             if not is_admin(message.chat.id, message.from_user.id):
                 try:
                     bot.delete_message(message.chat.id, message.message_id)
@@ -57,7 +76,7 @@ def handle_messages(message):
                     pass
             return
 
-    if message.chat.type == 'private' and message.from_user.id == AUTHORIZED_USER_ID:
+    if message.chat.type == 'private' and message.from_user.id in AUTHORIZED_USER_IDS:
 
         if message.text == "➕ إضافة رسالة":
             waiting_for_message = True
@@ -69,7 +88,7 @@ def handle_messages(message):
             return
 
         elif waiting_for_message:
-            temp_message = message.text.strip()
+            temp_message = message
             waiting_for_message = False
             waiting_for_time = True
             bot.reply_to(message, "⏰ أرسل الوقت بصيغة 12 ساعة مثل: 2:30")
@@ -103,8 +122,11 @@ def show_scheduled_messages(chat_id):
 
     markup = InlineKeyboardMarkup(row_width=1)
     for idx, msg in enumerate(daily_messages):
-        short = (msg["message"][:30] + "...") if len(msg["message"]) > 30 else msg["message"]
-        btn = InlineKeyboardButton(f"🗑️ حذف: {short} 🕓{msg['time']}", callback_data=f"delete_{idx}")
+        preview = "📷 صورة" if msg["type"] == "photo" else \
+                  "🎥 فيديو" if msg["type"] == "video" else \
+                  "📄 ملف" if msg["type"] == "document" else \
+                  (msg["text"][:30] + "..." if len(msg["text"]) > 30 else msg["text"])
+        btn = InlineKeyboardButton(f"🗑️ حذف: {preview} 🕓{msg['time']}", callback_data=f"delete_{idx}")
         markup.add(btn)
 
     markup.add(InlineKeyboardButton("⬅️ رجوع", callback_data="back_main"))
@@ -112,10 +134,9 @@ def show_scheduled_messages(chat_id):
 
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback(call):
-    if call.from_user.id != AUTHORIZED_USER_ID:
+    if call.from_user.id not in AUTHORIZED_USER_IDS:
         return
 
-    # أجب على الضغط فوراً حتى لا يحدث timeout
     try:
         bot.answer_callback_query(call.id)
     except:
@@ -125,13 +146,12 @@ def handle_callback(call):
         idx = int(call.data.split("_")[1])
         if 0 <= idx < len(daily_messages):
             deleted = daily_messages.pop(idx)
+            save_scheduled_messages()
             bot.edit_message_text(
-                f"✅ تم حذف الرسالة المجدولة:\n\n🗑️ {deleted['message']}\n🕓 {deleted['time']}",
+                f"✅ تم حذف الرسالة المجدولة:\n\n🗑️ {deleted['type']} 🕓 {deleted['time']}",
                 call.message.chat.id,
                 call.message.message_id
             )
-        else:
-            bot.answer_callback_query(call.id, "❌ رقم غير صالح.")
 
     elif call.data == "back_main":
         bot.delete_message(call.message.chat.id, call.message.message_id)
@@ -149,10 +169,25 @@ def handle_callback(call):
         adjusted_time = datetime.strptime(hour_12 + (" AM" if call.data == "am" else " PM"), "%I:%M %p") - timedelta(hours=3)
         hour_24_str = adjusted_time.strftime("%H:%M")
 
-        daily_messages.append({
-            "message": msg,
+        msg_data = {
+            "type": msg.content_type,
             "time": hour_24_str
-        })
+        }
+
+        if msg.content_type == "text":
+            msg_data["text"] = msg.text
+        elif msg.content_type == "photo":
+            msg_data["file_id"] = msg.photo[-1].file_id
+            msg_data["caption"] = msg.caption or ""
+        elif msg.content_type == "video":
+            msg_data["file_id"] = msg.video.file_id
+            msg_data["caption"] = msg.caption or ""
+        elif msg.content_type == "document":
+            msg_data["file_id"] = msg.document.file_id
+            msg_data["caption"] = msg.caption or ""
+
+        daily_messages.append(msg_data)
+        save_scheduled_messages()
 
         bot.edit_message_text(
             f"✅ تم جدولة الرسالة يوميًا في {hour_12} {'صباحًا' if call.data == 'am' else 'مساءً'}",
@@ -161,16 +196,39 @@ def handle_callback(call):
         )
 
 def schedule_checker():
+    already_sent_times = set()
     while True:
-        now = datetime.now().strftime("%H:%M")
-        for item in daily_messages:
-            if item["time"] == now:
-                try:
-                    bot.send_message(GROUP_CHAT_ID, item["message"])
-                except Exception as e:
-                    print(f"❌ خطأ بالإرسال: {e}")
-                time.sleep(60)
+        now = datetime.now()
+        now_str = now.strftime("%H:%M")
+
+        if now_str not in already_sent_times:
+            for item in daily_messages:
+                if item["time"] == now_str:
+                    try:
+                        if item["type"] == "text":
+                            bot.send_message(GROUP_CHAT_ID, item["text"])
+                        elif item["type"] == "photo":
+                            bot.send_photo(GROUP_CHAT_ID, item["file_id"], caption=item.get("caption", ""))
+                        elif item["type"] == "video":
+                            bot.send_video(GROUP_CHAT_ID, item["file_id"], caption=item.get("caption", ""))
+                        elif item["type"] == "document":
+                            bot.send_document(GROUP_CHAT_ID, item["file_id"], caption=item.get("caption", ""))
+                    except Exception as e:
+                        print(f"❌ خطأ بالإرسال: {e}")
+                    time.sleep(1)
+
+            already_sent_times.add(now_str)
+
         time.sleep(1)
 
+# تحميل الرسائل المجدولة من الملف عند بدء التشغيل
+load_scheduled_messages()
+
+# بدء الجدولة بالخلفية
 threading.Thread(target=schedule_checker, daemon=True).start()
+
+# 🔧 حل مشكلة 409 Conflict بسبب Webhook
+bot.remove_webhook()
+
+# تشغيل البوت
 bot.polling()
