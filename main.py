@@ -17,13 +17,9 @@ URL_PATTERN = r'(https?://\S+|www\.\S+)'
 DATA_DIR = "data"
 STORAGE_FILE = os.path.join(DATA_DIR, "messages.json")
 
-# قائمة الرسائل المجدولة
 daily_messages = []
-
-# حالة انتظار كل مستخدم (per-user state)
 user_states = {}
 
-# إنشاء مجلد التخزين إذا ما موجود
 os.makedirs(DATA_DIR, exist_ok=True)
 
 def load_scheduled_messages():
@@ -64,17 +60,16 @@ def handle_start(message):
 def handle_messages(message):
     user_id = message.from_user.id
 
-    # حذف الرسائل التي تحتوي روابط في الجروبات من غير الأدمنز
+    # حذف روابط الأعضاء العاديين فقط في الگروبات
     if message.chat.type in ['group', 'supergroup']:
-    if message.content_type == 'text' and re.search(URL_PATTERN, message.text):
-        try:
-            chat_member = bot.get_chat_member(message.chat.id, user_id)
-            status = chat_member.status
-            if status not in ['administrator', 'creator']:
-                bot.delete_message(message.chat.id, message.message_id)
-        except Exception as e:
-            print(f"فشل التحقق من صلاحيات العضو: {e}")
-        return
+        if message.content_type == 'text' and re.search(URL_PATTERN, message.text):
+            try:
+                member = bot.get_chat_member(message.chat.id, user_id)
+                if member.status not in ['administrator', 'creator']:
+                    bot.delete_message(message.chat.id, message.message_id)
+            except Exception as e:
+                print(f"❌ فشل التحقق من صلاحيات العضو: {e}")
+            return
 
     if message.chat.type == 'private' and user_id in AUTHORIZED_USER_IDS:
         state = user_states.get(user_id, {})
@@ -88,9 +83,7 @@ def handle_messages(message):
             show_scheduled_messages(message.chat.id)
             return
 
-        # إذا المستخدم يرسل الرسالة التي يريد جدولتها
         if state.get("waiting_for_message"):
-            # خزن الرسالة
             user_states[user_id] = {
                 "waiting_for_message": False,
                 "waiting_for_time": True,
@@ -99,7 +92,6 @@ def handle_messages(message):
             bot.reply_to(message, "⏰ أرسل الوقت بصيغة 12 ساعة مثل: 2:30")
             return
 
-        # إذا المستخدم يرسل الوقت
         if state.get("waiting_for_time"):
             raw_time = message.text.strip()
             try:
@@ -113,7 +105,6 @@ def handle_messages(message):
                 )
                 bot.reply_to(message, f"🕓 اختر هل الوقت صباحًا أم مساءً:", reply_markup=markup)
 
-                # حفظ الوقت مؤقتًا
                 user_states[user_id]["pending_time"] = raw_time
 
             except ValueError:
@@ -204,7 +195,6 @@ def handle_callback(call):
             call.message.message_id
         )
 
-        # مسح حالة المستخدم بعد الإضافة
         user_states.pop(user_id, None)
 
 def schedule_checker():
@@ -213,7 +203,6 @@ def schedule_checker():
         now = datetime.now()
         now_str = now.strftime("%H:%M")
 
-        # تنظيف قائمة الإرسال يومياً في بداية اليوم
         if now_str == "00:00":
             already_sent_times.clear()
 
@@ -232,17 +221,11 @@ def schedule_checker():
                     except Exception as e:
                         print(f"❌ خطأ بالإرسال: {e}")
                     time.sleep(1)
-
             already_sent_times.add(now_str)
 
         time.sleep(1)
 
-# تحميل الرسائل المجدولة من الملف عند بدء التشغيل
 load_scheduled_messages()
-
-# بدء الجدولة بالخلفية
 threading.Thread(target=schedule_checker, daemon=True).start()
-
 bot.remove_webhook()
-
 bot.polling()
