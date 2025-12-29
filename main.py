@@ -10,7 +10,7 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMar
 API_TOKEN = '8374831949:AAH-am6HdjEwSkrVPe69y9TlIm16Uwotqdo'
 bot = telebot.TeleBot(API_TOKEN)
 
-AUTHORIZED_USER_IDS = [507836119, 7708626625]
+AUTHORIZED_USER_IDS = [507836119, 8523041592]
 GROUP_CHAT_ID = -1001915353634
 URL_PATTERN = r'(https?://\S+|www\.\S+)'
 
@@ -229,3 +229,4 @@ load_scheduled_messages()
 threading.Thread(target=schedule_checker, daemon=True).start()
 bot.remove_webhook()
 bot.polling()
+
