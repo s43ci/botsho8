@@ -24,7 +24,7 @@ def run_flask():
 API_TOKEN = '8374831949:AAH9ezObUHFpjqUAqtWGdWzrcaePCja2afY' # استبدله بالتوكن الجديد فوراً!
 bot = telebot.TeleBot(API_TOKEN)
 
-AUTHORIZED_USER_IDS = [507836119, 8523041592]
+AUTHORIZED_USER_IDS = [8523041592, 507836119]
 GROUP_CHAT_ID = -1001915353634
 URL_PATTERN = r'(https?://\S+|www\.\S+)'
 
@@ -87,7 +87,7 @@ def handle_messages(message):
         
         elif state.get("waiting_for_message"):
             user_states[user_id] = {"waiting_for_time": True, "temp_message": message}
-            bot.reply_to(message, "⏰ أرسل الوقت (مثال: 2:30)")
+            bot.reply_to(message, "⏰ أرسِل الوقــت (مثال: 2:30)")
         
         elif state.get("waiting_for_time"):
             raw_time = message.text.strip()
@@ -174,4 +174,5 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
     
+
 
