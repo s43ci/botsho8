@@ -21,7 +21,7 @@ def run_flask():
     app.run(host='0.0.0.0', port=port)
 
 # --- إعدادات البوت ---
-API_TOKEN = '8374831949:AAH9ezObUHFpjqUAqtWGdWzrcaePCja2afY' # استبدله بالتوكن الجديد فوراً!
+API_TOKEN = '8374831949:AAET5CT5Wfn-Xd7Wm2oFWfSWwDBH7t8mSG0' # استبدله بالتوكن الجديد فوراً!
 bot = telebot.TeleBot(API_TOKEN)
 
 AUTHORIZED_USER_IDS = [8523041592, 507836119]
@@ -174,5 +174,6 @@ if __name__ == "__main__":
     bot.remove_webhook()
     bot.infinity_polling(timeout=10, long_polling_timeout=5)
     
+
 
 
